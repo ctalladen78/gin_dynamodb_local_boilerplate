@@ -1,14 +1,22 @@
 
-// db schema
+// create table schema 
 ```
 aws dynamodb create-table \
 --endpoint-url http://localhost:8000 \
---key-schema AttributeName=id,KeyType=HASH AttributeName=Todo,KeyType=RANGE \
+--key-schema AttributeName=id,KeyType=HASH AttributeName=todo,KeyType=RANGE \
 --attribute-definitions AttributeName=id,AttributeType=S \
-AttributeName=Todo,AttributeType=S \
+AttributeName=todo,AttributeType=S \
 --billing-mode PAY_PER_REQUEST \
 --table-name Test
 ```
+
+// add item
+```
+aws dynamodb put-item --endpoint-url http://localhost:8000 \
+--table-name Test --item file://item.json
+```
+
+
 
 ```
 {

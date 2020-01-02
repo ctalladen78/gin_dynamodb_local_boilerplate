@@ -48,8 +48,8 @@ func (ctrl *DbController) GetItem(key string, table string) (interface{}, error)
 }
 
 // ensure item follows attribute value schema
-func (ctrl *DbController) PutItem(table string, item interface{}) error {
-	av, err := dynamodbattribute.MarshalMap(item)
+func (ctrl *DbController) PutItem(table string, todo interface{}) error {
+	av, err := dynamodbattribute.MarshalMap(todo)
 	// TODO recheck if item follows table schema
 	if err != nil {
 		return err
@@ -59,10 +59,11 @@ func (ctrl *DbController) PutItem(table string, item interface{}) error {
 		TableName: aws.String(table),
 	}
 	log.Printf("Put Input %v", input)
-	_, err = ctrl.conn.PutItem(input)
+	o, err := ctrl.conn.PutItem(input)
 	if err != nil {
 		return err
 	}
+	log.Printf("Put output %v", o)
 	return err
 }
 

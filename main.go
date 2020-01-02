@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	// "golang-projects/aws_dynamodb_basic_test/dao"
@@ -23,20 +24,26 @@ func main() {
 	router.Run(":5000")
 
 }
+
+// GET /user?userid=one
 func GetUser(c *gin.Context) {
-	u := c.Query("userid")
+	userId := c.Query("userid")
 	// c.Param("userid")
-	c.JSONP(200, gin.H{"data": u})
+	res, err := ctrl.GetItem(userId, "Test2")
+	if err != nil {
+		c.AbortWithError(501, err)
+	}
+	c.JSONP(200, gin.H{"data": res})
 }
 
 func GetUserList(c *gin.Context) {
 	// http://github.com/gin-gonic/examples
-	table := "Test"
+	table := "Test2"
 	resList, err := ctrl.List(table)
 	if err != nil {
 		c.AbortWithError(501, err)
 	}
-	fmt.Printf("RESULTS %v", resList)
+	fmt.Printf("RESULTS %s", resList)
 	// c.String(http.StatusOK, string(result))
 	// c.HTML(http.StatusOK, "template.tmpl", gin.H{"title": "helloworld"})
 	// c.Stream()
@@ -48,8 +55,9 @@ func PutUser(c *gin.Context) {
 	u := c.PostForm("username")
 	// e := c.PostForm("email")
 	t := &TodoObject{}
+	t.Id = time.Now().Format(time.RFC3339) // uuid.New()
 	t.Todo = u
-	ctrl.PutItem("Test", t)
+	ctrl.PutItem("Test2", t)
 	c.JSONP(200, gin.H{"data": u})
 }
 
@@ -65,6 +73,6 @@ func UpdateUser(c *gin.Context) {
 	}
 	newItem := &TodoObject{}
 	newItem.Todo = "new todo item"
-	ctrl.Update("Test", itemKey, newItem)
+	ctrl.Update("Test2", itemKey, newItem)
 	c.JSONP(200, gin.H{"data": u})
 }
