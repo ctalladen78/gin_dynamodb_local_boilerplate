@@ -1,7 +1,7 @@
 package main
 
-type Todo struct {
-	Action string `json:"action"`
+type TodoObject struct {
+	Todo string `json:"todo"`
 }
 
 type UserObject struct {

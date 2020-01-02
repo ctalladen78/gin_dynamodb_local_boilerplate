@@ -26,7 +26,7 @@ func InitDbConnection(h string) *DbController {
 
 // use dynamodbattribute for marshal unmarshal
 // we use castTo to define the struct which will contain return value
-func (ctrl *DbController) GetItem(key string, table string, castTo interface{}) error {
+func (ctrl *DbController) GetItem(key string, table string) (interface{}, error) {
 	input := &dynamodb.GetItemInput{
 		TableName: aws.String(table),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -37,13 +37,14 @@ func (ctrl *DbController) GetItem(key string, table string, castTo interface{}) 
 	}
 	res, err := ctrl.conn.GetItem(input)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	var castTo *TodoObject
 	err = dynamodbattribute.UnmarshalMap(res.Item, &castTo)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return castTo, nil
 }
 
 // ensure item follows attribute value schema
@@ -57,6 +58,7 @@ func (ctrl *DbController) PutItem(table string, item interface{}) error {
 		Item:      av,
 		TableName: aws.String(table),
 	}
+	log.Printf("Put Input %v", input)
 	_, err = ctrl.conn.PutItem(input)
 	if err != nil {
 		return err
@@ -65,22 +67,24 @@ func (ctrl *DbController) PutItem(table string, item interface{}) error {
 }
 
 // pass in an empty attribute value struct which will be populated as a result
-func (ctrl *DbController) List(table string, castTo interface{}) error {
+func (ctrl *DbController) List(table string) (interface{}, error) {
 	if ctrl.conn == nil {
-		return errors.New("db connection error")
+		return nil, errors.New("db connection error")
 	}
 	// get all items in table
 	scanOutput, err := ctrl.conn.Scan(&dynamodb.ScanInput{
 		TableName: aws.String(table),
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
+	var castTo []*TodoObject
+	// https://github.com/mczal/go-gellato-membership/blob/master/service/UserService.go
 	err = dynamodbattribute.UnmarshalListOfMaps(scanOutput.Items, &castTo)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return err
+	return castTo, nil
 }
 
 // itemKey {"key":{S:aws.String("val")}}
@@ -113,7 +117,7 @@ func (s *DbController) Update(table string, itemKey interface{}, newItem interfa
 
 	type UpdatedItem struct {
 		// value map[string]*dynamodb.AttributeValue
-		value Todo
+		value TodoObject
 	}
 
 	// TODO print result
@@ -122,6 +126,6 @@ func (s *DbController) Update(table string, itemKey interface{}, newItem interfa
 	// convert db result into inmemory struct
 	err = dynamodbattribute.UnmarshalMap(result.Attributes, &updatedAttributes)
 
-	log.Printf("%s", updatedAttributes.value.Action)
+	log.Printf("%s", updatedAttributes.value.Todo)
 	return nil
 }

@@ -11,7 +11,6 @@ import (
 var ctrl *DbController
 
 func main() {
-	// table := "Test"
 	ctrl = InitDbConnection("http://localhost:8000")
 
 	router := gin.New()
@@ -33,11 +32,11 @@ func GetUser(c *gin.Context) {
 func GetUserList(c *gin.Context) {
 	// http://github.com/gin-gonic/examples
 	table := "Test"
-	var resList []*UserObject // TODO cast to model struct
-	err := ctrl.List(table, resList)
+	resList, err := ctrl.List(table)
 	if err != nil {
 		c.AbortWithError(501, err)
 	}
+	fmt.Printf("RESULTS %v", resList)
 	// c.String(http.StatusOK, string(result))
 	// c.HTML(http.StatusOK, "template.tmpl", gin.H{"title": "helloworld"})
 	// c.Stream()
@@ -48,17 +47,24 @@ func PutUser(c *gin.Context) {
 	// c.GetPostForm()
 	u := c.PostForm("username")
 	// e := c.PostForm("email")
-	i := &UserObject{}
-	i.Name = u
-	ctrl.PutItem("Test", i)
+	t := &TodoObject{}
+	t.Todo = u
+	ctrl.PutItem("Test", t)
 	c.JSONP(200, gin.H{"data": u})
 }
 
 func UpdateUser(c *gin.Context) {
 	u := c.PostForm("username")
 	// e := c.PostForm("email")
-	i := &Todo{}
-	i.Action = u
-	ctrl.PutItem("Test", i)
+	itemKey := struct {
+		id   string
+		todo string
+	}{
+		"id",
+		"test",
+	}
+	newItem := &TodoObject{}
+	newItem.Todo = "new todo item"
+	ctrl.Update("Test", itemKey, newItem)
 	c.JSONP(200, gin.H{"data": u})
 }
