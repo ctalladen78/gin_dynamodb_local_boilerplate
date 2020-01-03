@@ -10,18 +10,36 @@ AttributeName=todo,AttributeType=S \
 --table-name Test
 ```
 
-// add item
+// add item with cli
 ```
 aws dynamodb put-item --endpoint-url http://localhost:8000 \
 --table-name Test --item file://item.json
 ```
 
+// http requests
+
+```
+GET http://localhost:5000/user?userid=third&todo=action
+GET http://localhost:5000/userlist
+POST http://localhost:5000/user, --form-data {"todo":"value"}
+POST http://localhost:5000/user/edit --form-data {"todo":"newvalue"}
+```
 
 
 ```
 {
     "TableDescription": {
         "TableArn": "arn:aws:dynamodb:ddblocal:000000000000:table/Test",
+        "KeySchema": [
+            {
+                "KeyType": "HASH",
+                "AttributeName": "id"
+            },
+            {
+                "KeyType": "RANGE",
+                "AttributeName": "todo"
+            }
+        ],
         "AttributeDefinitions": [
             {
                 "AttributeName": "id",
@@ -46,16 +64,6 @@ aws dynamodb put-item --endpoint-url http://localhost:8000 \
             "BillingMode": "PAY_PER_REQUEST"
         },
         "TableStatus": "ACTIVE",
-        "KeySchema": [
-            {
-                "KeyType": "HASH",
-                "AttributeName": "id"
-            },
-            {
-                "KeyType": "RANGE",
-                "AttributeName": "todo"
-            }
-        ],
         "ItemCount": 0,
         "CreationDateTime": 1577906088.431
     }

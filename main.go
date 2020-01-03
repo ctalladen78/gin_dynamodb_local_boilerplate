@@ -19,6 +19,7 @@ func main() {
 	router.GET("/user", GetUser)
 	router.GET("/userlist", GetUserList)
 	router.POST("/user", PutUser)
+	router.POST("/user/edit", UpdateUser)
 
 	fmt.Print("running server on localhost:5000")
 	router.Run(":5000")
@@ -28,8 +29,9 @@ func main() {
 // GET /user?userid=one
 func GetUser(c *gin.Context) {
 	userId := c.Query("userid")
+	todo := c.Query("todo")
 	// c.Param("userid")
-	res, err := ctrl.GetItem(userId, "Test2")
+	res, err := ctrl.GetItem(userId, todo, "Test2")
 	if err != nil {
 		c.AbortWithError(501, err)
 	}
@@ -52,7 +54,7 @@ func GetUserList(c *gin.Context) {
 
 func PutUser(c *gin.Context) {
 	// c.GetPostForm()
-	u := c.PostForm("username")
+	u := c.PostForm("todo")
 	// e := c.PostForm("email")
 	t := &TodoObject{}
 	t.Id = time.Now().Format(time.RFC3339) // uuid.New()
@@ -62,17 +64,17 @@ func PutUser(c *gin.Context) {
 }
 
 func UpdateUser(c *gin.Context) {
-	u := c.PostForm("username")
+	nt := c.PostForm("newtodo")
+	oid := c.PostForm("objectid")
+	ot := c.PostForm("oldtodo")
 	// e := c.PostForm("email")
-	itemKey := struct {
-		id   string
-		todo string
-	}{
-		"id",
-		"test",
+	t := &TodoObject{
+		Id:   oid,
+		Todo: ot,
 	}
-	newItem := &TodoObject{}
-	newItem.Todo = "new todo item"
-	ctrl.Update("Test2", itemKey, newItem)
+	u, err := ctrl.Update("Test2", t, nt)
+	if err != nil {
+		c.AbortWithError(501, err)
+	}
 	c.JSONP(200, gin.H{"data": u})
 }
