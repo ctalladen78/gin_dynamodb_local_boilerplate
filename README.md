@@ -3,9 +3,10 @@
 ```
 aws dynamodb create-table \
 --endpoint-url http://localhost:8000 \
---key-schema AttributeName=id,KeyType=HASH AttributeName=todo,KeyType=RANGE \
---attribute-definitions AttributeName=id,AttributeType=S \
-AttributeName=todo,AttributeType=S \
+--key-schema AttributeName=BucketName,KeyType=HASH AttributeName=CreatedAt,KeyType=RANGE \
+--attribute-definitions AttributeName=BucketName,AttributeType=S \
+AttributeName=CreatedAt,AttributeType=S,AttributeName=Todo,AttributeType=S \
+--global-secondary-indexes file://lsi.json
 --billing-mode PAY_PER_REQUEST \
 --table-name Test
 ```

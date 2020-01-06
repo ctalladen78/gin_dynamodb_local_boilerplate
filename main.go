@@ -57,7 +57,8 @@ func PutUser(c *gin.Context) {
 	u := c.PostForm("todo")
 	// e := c.PostForm("email")
 	t := &TodoObject{}
-	t.Id = time.Now().Format(time.RFC3339) // uuid.New()
+	t.CreatedAt = time.Now().Format(time.RFC3339) // uuid.New()
+	t.Id = "BucketName"
 	t.Todo = u
 	ctrl.PutItem("Test2", t)
 	c.JSONP(200, gin.H{"data": u})
@@ -65,14 +66,12 @@ func PutUser(c *gin.Context) {
 
 func UpdateUser(c *gin.Context) {
 	nt := c.PostForm("newtodo")
-	oid := c.PostForm("objectid")
-	ot := c.PostForm("oldtodo")
-	// e := c.PostForm("email")
-	t := &TodoObject{
-		Id:   oid,
-		Todo: ot,
+	ot := &TodoObject{
+		CreatedAt: "",
+		Id:        c.PostForm("userid"),
+		Todo:      c.PostForm("oldtodo"),
 	}
-	u, err := ctrl.Update("Test2", t, nt)
+	u, err := ctrl.Update("Test2", ot, nt)
 	if err != nil {
 		c.AbortWithError(501, err)
 	}
