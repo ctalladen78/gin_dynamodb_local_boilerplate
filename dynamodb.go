@@ -24,69 +24,65 @@ func InitDbConnection(h string) *DbController {
 	}
 }
 
-// get item by id, todo as per table schema
-func (ctrl *DbController) GetItem(id string, todo string, table string) (interface{}, error) {
+// get item by key attributes as per table schema
+func (ctrl *DbController) GetItem(t *TodoObject, table string) (interface{}, error) {
 	// https://github.com/ace-teknologi/memzy
+	// https://github.com/nullseed/lesshomeless-backend/blob/master/services/user/dynamodb/dynamodb.go
 	// https://github.com/mczal/go-gellato-membership/blob/master/service/UserService.go
+	// building pkey for search query
 	var pkey = map[string]*dynamodb.AttributeValue{
 		"id": {
-			S: aws.String(id),
+			S: aws.String(t.Id),
 		},
 		"todo": {
-			S: aws.String(todo),
+			S: aws.String(t.Todo),
 		},
 	}
-	// building pkey for search query
-	// keys = &TodoObject{"id":id,"todo":todo}
-	// var pkey = map[string]*dynamodb.AttributeValue{}
-	// option 1
-	// for k, v := range keys {
-	// av, err := dynamodbattribute.Marshal(v)
-	// 	pkey[k] = av
-	// }
-	// option 2
-	// pkey, err := dynamodbattribute.MarshalMap(keys)
+
+	// TodoObject and table key attributes do not match because of extra "cratedat" field
+	// pkey, err := dynamodbattribute.MarshalMap(t)
 	input := &dynamodb.GetItemInput{
 		TableName: aws.String(table),
 		Key:       pkey,
 	}
-	log.Println("GET ITEM input %s", input)
 	res, err := ctrl.conn.GetItem(input)
-	log.Println("GET ITEM output %s", res)
+	log.Println("GET ITEM output", res)
 	if err != nil {
 		return nil, err
 	}
-	var castTo *TodoObject
-	err = dynamodbattribute.UnmarshalMap(res.Item, &castTo)
+	var out *TodoObject
+	err = dynamodbattribute.UnmarshalMap(res.Item, &out)
 	if err != nil {
 		return nil, err
 	}
-	return castTo, nil
+	return out, nil
 }
 
 // ensure item follows attribute value schema
-func (ctrl *DbController) PutItem(table string, todo interface{}) error {
+func (ctrl *DbController) PutItem(table string, todo interface{}) (interface{}, error) {
 	// https://stackoverflow.com/questions/38151687/dynamodb-adding-non-key-attributes/56177142
-	avMap, err := dynamodbattribute.MarshalMap(todo) // conver todo item to av map
-	log.Printf("AV Map %v", avMap)
+	newTodoAV, err := dynamodbattribute.MarshalMap(todo) // conver todo item to av map
+	log.Printf("AV Map %v", newTodoAV)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	input := &dynamodb.PutItemInput{
-		Item:      avMap,
+		Item:      newTodoAV,
 		TableName: aws.String(table),
 	}
 	log.Printf("Put Input %v", input)
 	o, err := ctrl.conn.PutItem(input)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	log.Printf("Put output %v", o)
-	return err
+	// var out map[string]interface{}
+	// log.Printf("Put output %s", o.Attributes)
+	// dynamodbattribute.UnmarshalMap(o.Attributes, &out)
+	return o.Attributes, err
 }
 
 // pass in an empty attribute value struct which will be populated as a result
-func (ctrl *DbController) List(table string) (interface{}, error) {
+func (ctrl *DbController) Scan(table string) (interface{}, error) {
 	if ctrl.conn == nil {
 		return nil, errors.New("db connection error")
 	}
@@ -106,28 +102,50 @@ func (ctrl *DbController) List(table string) (interface{}, error) {
 	return castTo, nil
 }
 
-// using dynamodb.Scan as opposed to dynamodb.Query
-func (ctrl *DbController) ScanFilter(table string) {
+// using dynamodb.Query as opposed to dynamodb.Scan
+// query by enums CREATED_AT | CREATED_BY
+//     --key-condition-expression 'Artist = :a AND SongTitle BETWEEN :t1 AND :t2' \
+func (ctrl *DbController) QueryFilter(table string, qc QueryCondition, val string) (interface{}, error) {
+	condition := ""
+	switch qc {
+	case CREATED_AT:
+		condition = "CREATED_AT = :val"
+	case CREATED_BY: // return items created by
+		condition = "id = :val"
+	default: // return all items
+		condition = ""
+	}
+	qInput := &dynamodb.QueryInput{
+		TableName: aws.String(table),
+		// AttributesToGet : , // select only certain attribute values
+		KeyConditionExpression: aws.String(condition),
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":val": {S: aws.String(val)}, // use this value in an expression
+		},
+		// KeyConditionExpression: "",
+	}
+	res, err := ctrl.conn.Query(qInput)
+	castTo := []*TodoObject{}
+	err = dynamodbattribute.UnmarshalListOfMaps(res.Items, &castTo)
+	if err != nil {
+		return nil, err
+	}
+	return castTo, nil
 
 }
 
-// itemKey {"partitionKey":{S:aws.String("val")},{"partitionKey":{S:aws.String("val")}}
-func (ctrl *DbController) Update(table string, oldItem *TodoObject, newItemValue string) (interface{}, error) {
+// Update(table string, f *FormInput) (interface{}, err)
+// returns updated object
+func (ctrl *DbController) Update(table string, formInput *FormInput) (interface{}, error) {
 	var err error
 	// var keyMapAV2 map[string]*dynamodb.AttributeValue
 	// var toUpdate map[string]*dynamodb.AttributeValue
 	// http://gist.github.com/doncicuto
-	// setup key
-	// keyMapAV, err := dynamodbattribute.MarshalMap(&TodoObject{
-	// 	CreatedAt: "2020-01-06T18:38:01+07:00",
-	// 	Todo:      "texasasasas", // oldItem.Todo
-	// 	Id:        "BucketName",  // oldItem.Id
-	// })
-	keyMapAV := map[string]*dynamodb.AttributeValue{
-		"id":   {S: aws.String("texasasasas")},
-		"todo": {S: aws.String("BucketName")},
+	// keyMapAV, err := dynamodbattribute.MarshalMap(oldItem)
+	oldItemKeys := map[string]*dynamodb.AttributeValue{
+		"id":   {S: aws.String(formInput.Id)},
+		"todo": {S: aws.String(formInput.Ot)},
 	}
-	log.Printf("AV Map %v", keyMapAV)
 	if err != nil {
 		return nil, errors.New("itemkey error")
 	}
@@ -139,14 +157,17 @@ func (ctrl *DbController) Update(table string, oldItem *TodoObject, newItemValue
 	// https://github.com/mczal/go-gellato-membership/blob/master/service/UserService.go#L33
 	itemInput := &dynamodb.UpdateItemInput{
 		TableName: aws.String(table),
-		Key:       keyMapAV, // match key attributes per table definition
+		Key:       oldItemKeys, // match key attributes per table definition
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
-			":t": {S: aws.String(newItemValue)},
-		}, // set new value
-		ExpressionAttributeNames: map[string]*string{"#T": aws.String("createdat")}, // attribute must not be part of the key
+			":t": {S: aws.String(formInput.Nt)}, // set new value
+		},
+		// attribute being updated must not be part of the key
+		ExpressionAttributeNames: map[string]*string{
+			"#T": aws.String("createdat"),
+		},
 		// ConditionExpression:	"attribute_exists("#T"),
 		// https://gist.github.com/doncicuto/d623ec0e74bf6ea0db7c364d88507393#file-main-go-L63
-		ReturnValues:     aws.String("ALL_NEW"),     // enum of ReturnValue class
+		ReturnValues:     aws.String("ALL_NEW"),     // enum of ReturnValue class UPDATED_NEW ALL_NEW ALL_OLD
 		UpdateExpression: aws.String("set #T = :t"), // SET,REMOVE the attribute to update
 
 	}
@@ -155,17 +176,16 @@ func (ctrl *DbController) Update(table string, oldItem *TodoObject, newItemValue
 		return nil, err
 	}
 
-	// type UpdatedItem struct {
-	// 	newItem TodoObject
-	// }
-
 	// TODO print resulting updated attributes
-	// updatedAttributes := &UpdatedItem{}
+	// var u *TodoObject
+	out := &TodoObject{}
 
 	// convert db result into inmemory struct
-	// err = dynamodbattribute.UnmarshalMap(result.Attributes, &updatedAttributes)
+	err = dynamodbattribute.UnmarshalMap(result.Attributes, out)
+	if err != nil {
+		return nil, err
+	}
 
-	log.Printf("%s", result.Attributes)
-	// return updatedAttributes.newItem, nil
-	return nil, nil
+	log.Printf("UPDATE RESULT %s", result.Attributes)
+	return out, nil
 }

@@ -24,6 +24,7 @@ GET http://localhost:5000/user?userid=third&todo=action
 GET http://localhost:5000/userlist
 POST http://localhost:5000/user, --form-data {"todo":"value"}
 POST http://localhost:5000/user/edit --form-data {"todo":"newvalue"}
+GET http://localhost:5000/query?userid=1BUCKET-username123
 ```
 
 
